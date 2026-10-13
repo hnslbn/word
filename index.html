@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>형태소 슬라이스</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #fff7ed, #ffedd5);
+      color: #1f2937;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+    }
+
+    .app {
+      width: min(100%, 950px);
+      min-height: 100vh;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    header {
+      background: #ffffff;
+      border: 2px solid #fed7aa;
+      border-radius: 22px;
+      padding: 16px 18px;
+      text-align: center;
+      box-shadow: 0 8px 18px rgba(124, 45, 18, 0.08);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 38px);
+      color: #9a3412;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      font-size: clamp(14px, 2.4vw, 18px);
+      color: #57534e;
+    }
+
+    .top-info {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .info-card {
+      background: #ffffff;
+      border: 2px solid #fed7aa;
+      border-radius: 18px;
+      padding: 12px;
+      text-align: center;
+      font-weight: 700;
+      color: #7c2d12;
+    }
+
+    .info-card span {
+      display: block;
+      margin-top: 4px;
+      font-size: 22px;
+      color: #111827;
+    }
+
+    main {
+      flex: 1;
+      background: #ffffff;
+      border: 2px solid #fed7aa;
+      border-radius: 26px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      box-shadow: 0 10px 22px rgba(124, 45, 18, 0.08);
+    }
+
+    .instruction {
+      text-align: center;
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: #44403c;
+      line-height: 1.5;
+    }
+
+    .stage-label {
+      text-align: center;
+      font-weight: 900;
+      font-size: clamp(17px, 2.6vw, 22px);
+      color: #9a3412;
+      background: #fff7ed;
+      border: 2px solid #fed7aa;
+      border-radius: 18px;
+      padding: 10px;
+    }
+
+    .food-stage {
+      min-height: 270px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(251, 191, 36, 0.35), transparent 26%),
+        radial-gradient(circle at 80% 15%, rgba(248, 113, 113, 0.24), transparent 25%),
+        radial-gradient(circle at 50% 90%, rgba(34, 197, 94, 0.18), transparent 28%),
+        #fffaf0;
+      border: 2px dashed #fdba74;
+    }
+
+    .food {
+      position: relative;
+      width: min(82vw, 580px);
+      min-height: 145px;
+      border-radius: 999px;
+      background: #fb923c;
+      border: 7px solid #ea580c;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: inset 0 -12px 0 rgba(154, 52, 18, 0.15);
+      transition: transform 0.25s ease, opacity 0.25s ease;
+      touch-action: none;
+      user-select: none;
+      overflow: hidden;
+    }
+
+    .food::before {
+      content: "";
+      position: absolute;
+      inset: 12px;
+      border-radius: 999px;
+      border: 3px solid rgba(255, 237, 213, 0.8);
+      pointer-events: none;
+    }
+
+    .food.correct {
+      animation: pop 0.45s ease;
+      background: #f97316;
+    }
+
+    .food.wrong {
+      animation: shake 0.35s ease;
+      background: #fca5a5;
+      border-color: #dc2626;
+    }
+
+    .word-row {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: clamp(34px, 8vw, 72px);
+      letter-spacing: 0.02em;
+      color: #ffffff;
+      text-shadow: 0 3px 0 rgba(124, 45, 18, 0.3);
+    }
+
+    .char {
+      padding: 0 4px;
+    }
+
+    .cut-zone {
+      width: clamp(24px, 5vw, 46px);
+      height: 90px;
+      margin: 0 -2px;
+      position: relative;
+      cursor: pointer;
+      border-radius: 12px;
+    }
+
+    .cut-zone::after {
+      content: "";
+      position: absolute;
+      top: 5px;
+      bottom: 5px;
+      left: 50%;
+      width: 4px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.38);
+      opacity: 0;
+      transition: opacity 0.15s ease, background 0.15s ease;
+    }
+
+    .cut-zone:hover::after,
+    .cut-zone.selected::after {
+      opacity: 1;
+      background: #ffffff;
+    }
+
+    .cut-zone.selected::before {
+      content: "슬라이스";
+      position: absolute;
+      left: 50%;
+      top: -26px;
+      transform: translateX(-50%);
+      font-size: 12px;
+      font-weight: 800;
+      color: #7c2d12;
+      background: #ffedd5;
+      border: 2px solid #fb923c;
+      border-radius: 999px;
+      padding: 2px 8px;
+      white-space: nowrap;
+    }
+
+    .knife-line {
+      position: absolute;
+      z-index: 4;
+      width: 6px;
+      height: 170px;
+      background: #fef3c7;
+      border: 2px solid #92400e;
+      border-radius: 999px;
+      transform: rotate(18deg);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .knife-line.show {
+      animation: slash 0.45s ease;
+    }
+
+    .split-result {
+      display: none;
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      font-size: clamp(30px, 7vw, 64px);
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 3px 0 rgba(124, 45, 18, 0.3);
+    }
+
+    .split-result.show {
+      display: flex;
+    }
+
+    .piece {
+      background: rgba(255, 237, 213, 0.26);
+      border: 3px solid rgba(255, 255, 255, 0.8);
+      border-radius: 30px;
+      padding: 8px 20px;
+      animation: pieceMove 0.5s ease forwards;
+    }
+
+    .slash-mark {
+      color: #fff7ed;
+      opacity: 0.9;
+    }
+
+    .buttons {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 16px;
+      padding: 14px 18px;
+      font-size: clamp(15px, 2.4vw, 18px);
+      font-weight: 800;
+      cursor: pointer;
+      color: #ffffff;
+      background: #ea580c;
+      box-shadow: 0 5px 0 #9a3412;
+    }
+
+    button:active {
+      transform: translateY(3px);
+      box-shadow: 0 2px 0 #9a3412;
+    }
+
+    button.secondary {
+      background: #0f766e;
+      box-shadow: 0 5px 0 #134e4a;
+    }
+
+    button.gray {
+      background: #57534e;
+      box-shadow: 0 5px 0 #292524;
+    }
+
+    button.outline {
+      background: #ffffff;
+      color: #43302b;
+      border: 2px solid #fed7aa;
+      box-shadow: 0 4px 0 #fed7aa;
+    }
+
+    button.outline.selected {
+      background: #fed7aa;
+      color: #7c2d12;
+      border-color: #fb923c;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .message {
+      min-height: 64px;
+      text-align: center;
+      font-size: clamp(17px, 2.8vw, 22px);
+      font-weight: 800;
+      color: #7c2d12;
+      line-height: 1.45;
+    }
+
+    .answer-box {
+      display: none;
+      text-align: center;
+      background: #fff7ed;
+      border: 2px solid #fdba74;
+      border-radius: 18px;
+      padding: 12px;
+      color: #7c2d12;
+      font-weight: 800;
+      font-size: clamp(16px, 2.4vw, 20px);
+    }
+
+    .answer-box.show {
+      display: block;
+    }
+
+    .type-step {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      margin-top: 6px;
+      background: #fefce8;
+      border: 2px solid #fde68a;
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .type-step.show {
+      display: flex;
+    }
+
+    .type-question {
+      font-size: clamp(16px, 2.4vw, 19px);
+      font-weight: 800;
+      color: #44403c;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .type-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .final-card {
+      display: none;
+      background: #fff7ed;
+      border: 2px solid #fdba74;
+      border-radius: 22px;
+      padding: 18px;
+      color: #431407;
+      line-height: 1.6;
+    }
+
+    .final-card.show {
+      display: block;
+    }
+
+    .final-card h2 {
+      margin: 0 0 10px;
+      color: #9a3412;
+      text-align: center;
+      font-size: clamp(24px, 4vw, 34px);
+    }
+
+    .score-big {
+      text-align: center;
+      font-size: clamp(28px, 6vw, 48px);
+      font-weight: 900;
+      color: #ea580c;
+      margin: 12px 0;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .result-item {
+      background: #ffffff;
+      border: 2px solid #fed7aa;
+      border-radius: 16px;
+      padding: 12px;
+      font-weight: 800;
+    }
+
+    .result-item span {
+      display: block;
+      font-size: 24px;
+      margin-top: 4px;
+      color: #111827;
+    }
+
+    .review-list {
+      margin-top: 14px;
+      background: #ffffff;
+      border: 2px solid #fed7aa;
+      border-radius: 16px;
+      padding: 12px;
+      font-weight: 700;
+    }
+
+    @keyframes slash {
+      0% {
+        opacity: 0;
+        transform: translate(-90px, -70px) rotate(18deg);
+      }
+      30% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate(90px, 70px) rotate(18deg);
+      }
+    }
+
+    @keyframes shake {
+      0%, 100% {
+        transform: translateX(0);
+      }
+      25% {
+        transform: translateX(-10px);
+      }
+      50% {
+        transform: translateX(10px);
+      }
+      75% {
+        transform: translateX(-6px);
+      }
+    }
+
+    @keyframes pop {
+      0% {
+        transform: scale(1);
+      }
+      45% {
+        transform: scale(1.06);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes pieceMove {
+      0% {
+        transform: translateY(0);
+      }
+      100% {
+        transform: translateY(-2px);
+      }
+    }
+
+    @media (max-width: 700px) {
+      .app {
+        padding: 10px;
+      }
+
+      .top-info {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      main {
+        padding: 12px;
+      }
+
+      .food-stage {
+        min-height: 235px;
+      }
+
+      .food {
+        min-height: 125px;
+      }
+
+      button {
+        width: 100%;
+      }
+
+      .type-buttons button {
+        flex: 1;
+        min-width: 31%;
+      }
+
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <h1>형태소 슬라이스</h1>
+      <div class="subtitle">단어를 나누고, 단일어·파생어·합성어를 구별해 보세요.</div>
+    </header>
+
+    <section class="top-info">
+      <div class="info-card">
+        문제
+        <span id="progressText">1 / 1</span>
+      </div>
+      <div class="info-card">
+        총점
+        <span id="scoreText">0</span>
+      </div>
+      <div class="info-card">
+        단계
+        <span id="stageText">1단계</span>
+      </div>
+      <div class="info-card">
+        기회
+        <span id="triesText">1차</span>
+      </div>
+    </section>
+
+    <main>
+      <div class="instruction" id="instruction">
+        1단계: 글자와 글자 사이를 눌러 <strong>형태소를 나누어</strong> 보세요.<br>
+        단일어라고 생각하면 <strong>안 나누기</strong>를 누르세요.<br>
+        2단계: 이 단어가 <strong>단일어·파생어·합성어</strong> 중 무엇인지 고르세요.
+      </div>
+
+      <div class="stage-label" id="stageLabel">
+        1단계: 형태소 나누기
+      </div>
+
+      <div class="food-stage" id="foodStage">
+        <div class="food" id="food">
+          <div class="knife-line" id="knifeLine"></div>
+          <div class="word-row" id="wordRow"></div>
+          <div class="split-result" id="splitResult"></div>
+        </div>
+      </div>
+
+      <div class="buttons" id="mainButtons">
+        <button id="checkBtn">[1단계] 정답 확인</button>
+        <button id="noCutBtn" class="secondary">[1단계] 안 나누기</button>
+        <button id="nextBtn" class="gray" disabled>다음 문제</button>
+      </div>
+
+      <div class="message" id="message">
+        1단계: 나눌 위치를 먼저 골라 보세요.
+      </div>
+
+      <div class="answer-box" id="answerBox"></div>
+
+      <div class="type-step" id="typeStep">
+        <div class="type-question" id="typeQuestion">
+          이 단어는 어떤 말일까요?
+        </div>
+        <div class="type-buttons">
+          <button class="outline" data-type-choice="단일어">단일어</button>
+          <button class="outline" data-type-choice="파생어">파생어</button>
+          <button class="outline" data-type-choice="합성어">합성어</button>
+        </div>
+      </div>
+
+      <div class="final-card" id="finalCard"></div>
+    </main>
+  </div>
+
+  <script>
+    const questions = [
+      { word: "밤하늘", parts: ["밤", "하늘"], type: "합성어" },
+      { word: "나무", parts: ["나무"], type: "단일어" },
+      { word: "덧신", parts: ["덧", "신"], type: "파생어" },
+      { word: "감나무", parts: ["감", "나무"], type: "합성어" },
+      { word: "베개", parts: ["베", "개"], type: "파생어" },
+      { word: "새잎", parts: ["새", "잎"], type: "합성어" },
+      { word: "하늘", parts: ["하늘"], type: "단일어" },
+      { word: "늦가을", parts: ["늦", "가을"], type: "파생어" },
+      { word: "밤낮", parts: ["밤", "낮"], type: "합성어" },
+      { word: "손수건", parts: ["손", "수건"], type: "합성어" },
+      { word: "바다", parts: ["바다"], type: "단일어" },
+      { word: "헛소문", parts: ["헛", "소문"], type: "파생어" },
+      { word: "한여름", parts: ["한", "여름"], type: "파생어" },
+      { word: "부채질", parts: ["부채", "질"], type: "파생어" },
+      { word: "맨손", parts: ["맨", "손"], type: "파생어" },
+      { word: "물병", parts: ["물", "병"], type: "합성어" },
+      { word: "구름", parts: ["구름"], type: "단일어" },
+      { word: "맞대결", parts: ["맞", "대결"], type: "파생어" },
+      { word: "장난꾸러기", parts: ["장난", "꾸러기"], type: "파생어" },
+      { word: "방울토마토", parts: ["방울", "토마토"], type: "합성어" },
+      { word: "양배추", parts: ["양", "배추"], type: "파생어" },
+      { word: "산딸기", parts: ["산", "딸기"], type: "합성어" },
+      { word: "풋고추", parts: ["풋", "고추"], type: "파생어" },
+      { word: "잠옷", parts: ["잠", "옷"], type: "합성어" },
+      { word: "밥그릇", parts: ["밥", "그릇"], type: "합성어" }
+    ];
+
+    const RANDOM_ORDER = true;
+
+    const CUT_FIRST_SCORE = 5;
+    const CUT_SECOND_SCORE = 2;
+    const TYPE_FIRST_SCORE = 10;
+    const TYPE_SECOND_SCORE = 5;
+
+    const MAX_SCORE_PER_QUESTION = CUT_FIRST_SCORE + TYPE_FIRST_SCORE;
+    const MAX_TOTAL_SCORE = questions.length * MAX_SCORE_PER_QUESTION;
+
+    let currentIndex = 0;
+    let score = 0;
+    let cutScore = 0;
+    let typeScore = 0;
+
+    let selectedCutIndex = null;
+    let stage = 1;
+    let locked = false;
+
+    let cutAttempts = 0;
+    let typeAttempts = 0;
+
+    let cutFirstCorrectCount = 0;
+    let cutSecondCorrectCount = 0;
+    let typeFirstCorrectCount = 0;
+    let typeSecondCorrectCount = 0;
+    let fullyCorrectCount = 0;
+
+    const reviewWords = [];
+
+    const wordRow = document.getElementById("wordRow");
+    const food = document.getElementById("food");
+    const knifeLine = document.getElementById("knifeLine");
+    const splitResult = document.getElementById("splitResult");
+    const message = document.getElementById("message");
+    const answerBox = document.getElementById("answerBox");
+    const progressText = document.getElementById("progressText");
+    const scoreText = document.getElementById("scoreText");
+    const stageText = document.getElementById("stageText");
+    const triesText = document.getElementById("triesText");
+    const stageLabel = document.getElementById("stageLabel");
+    const checkBtn = document.getElementById("checkBtn");
+    const noCutBtn = document.getElementById("noCutBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const typeStep = document.getElementById("typeStep");
+    const typeQuestion = document.getElementById("typeQuestion");
+    const typeButtons = document.querySelectorAll("[data-type-choice]");
+    const finalCard = document.getElementById("finalCard");
+    const instruction = document.getElementById("instruction");
+    const foodStage = document.getElementById("foodStage");
+    const mainButtons = document.getElementById("mainButtons");
+
+    if (RANDOM_ORDER) {
+      shuffleArray(questions);
+    }
+
+    loadQuestion();
+
+    checkBtn.addEventListener("click", checkCutAnswer);
+    noCutBtn.addEventListener("click", chooseNoCut);
+    nextBtn.addEventListener("click", goNext);
+
+    typeButtons.forEach(button => {
+      button.addEventListener("click", () => {
+        handleTypeChoice(button.dataset.typeChoice);
+      });
+    });
+
+    function loadQuestion() {
+      const question = questions[currentIndex];
+
+      stage = 1;
+      locked = false;
+      selectedCutIndex = null;
+      cutAttempts = 0;
+      typeAttempts = 0;
+
+      wordRow.innerHTML = "";
+      splitResult.innerHTML = "";
+      splitResult.classList.remove("show");
+      answerBox.classList.remove("show");
+      answerBox.textContent = "";
+      food.classList.remove("correct", "wrong", "split");
+
+      typeStep.classList.remove("show");
+      typeButtons.forEach(button => {
+        button.classList.remove("selected");
+        button.disabled = false;
+      });
+
+      finalCard.classList.remove("show");
+
+      progressText.textContent = `${currentIndex + 1} / ${questions.length}`;
+      scoreText.textContent = score;
+      stageText.textContent = "1단계";
+      triesText.textContent = "1차";
+      stageLabel.textContent = "1단계: 형태소 나누기";
+      message.textContent = "1단계: 첫 번째 기회입니다. 바로 맞히면 5점입니다.";
+
+      checkBtn.disabled = false;
+      noCutBtn.disabled = false;
+      nextBtn.disabled = true;
+
+      renderWord(question.word);
+    }
+
+    function renderWord(word) {
+      const chars = Array.from(word);
+
+      chars.forEach((char, index) => {
+        const charSpan = document.createElement("span");
+        charSpan.className = "char";
+        charSpan.textContent = char;
+        wordRow.appendChild(charSpan);
+
+        if (index < chars.length - 1) {
+          const cutZone = document.createElement("span");
+          cutZone.className = "cut-zone";
+          cutZone.dataset.cutIndex = index + 1;
+
+          cutZone.addEventListener("click", () => {
+            if (locked || stage !== 1) return;
+
+            selectedCutIndex = Number(cutZone.dataset.cutIndex);
+
+            document.querySelectorAll(".cut-zone").forEach(zone => {
+              zone.classList.remove("selected");
+            });
+
+            cutZone.classList.add("selected");
+
+            const possibleScore = cutAttempts === 0 ? CUT_FIRST_SCORE : CUT_SECOND_SCORE;
+            message.textContent = `1단계: 이 위치로 나누면 정답일 때 ${possibleScore}점입니다.`;
+          });
+
+          wordRow.appendChild(cutZone);
+        }
+      });
+    }
+
+    function checkCutAnswer() {
+      if (locked || stage !== 1) return;
+
+      const question = questions[currentIndex];
+
+      if (selectedCutIndex === null) {
+        message.textContent = "먼저 나눌 위치를 골라 주세요. 단일어라면 '안 나누기'를 누르세요.";
+        return;
+      }
+
+      cutAttempts += 1;
+      playSlashEffect();
+
+      const correctCutIndex = getCorrectCutIndex(question);
+
+      if (correctCutIndex !== null && selectedCutIndex === correctCutIndex) {
+        handleCorrectCut();
+      } else {
+        handleWrongCut();
+      }
+    }
+
+    function chooseNoCut() {
+      if (locked || stage !== 1) return;
+
+      const question = questions[currentIndex];
+      cutAttempts += 1;
+
+      if (question.parts.length === 1) {
+        handleCorrectCut();
+      } else {
+        handleWrongCut();
+      }
+    }
+
+    function getCorrectCutIndex(question) {
+      if (question.parts.length === 1) return null;
+      return Array.from(question.parts[0]).length;
+    }
+
+    function handleCorrectCut() {
+      const question = questions[currentIndex];
+      let earned = 0;
+
+      if (cutAttempts === 1) {
+        earned = CUT_FIRST_SCORE;
+        cutFirstCorrectCount += 1;
+      } else {
+        earned = CUT_SECOND_SCORE;
+        cutSecondCorrectCount += 1;
+      }
+
+      score += earned;
+      cutScore += earned;
+      updateScore();
+
+      locked = true;
+      stage = 2;
+
+      food.classList.remove("wrong");
+      food.classList.add("correct");
+
+      showSplitResult(question.parts);
+      playCorrectSound();
+
+      answerBox.textContent = `형태소: ${question.parts.join(" / ")} | 1단계 점수: ${earned}점`;
+      answerBox.classList.add("show");
+
+      message.textContent = `1단계 정답입니다! ${earned}점을 얻었습니다. 이제 단어 유형을 맞혀 보세요.`;
+      stageText.textContent = "2단계";
+      stageLabel.textContent = "2단계: 단어 유형 맞히기";
+      triesText.textContent = "1차";
+
+      checkBtn.disabled = true;
+      noCutBtn.disabled = true;
+
+      showTypeQuestion(question);
+      locked = false;
+    }
+
+    function handleWrongCut() {
+      food.classList.remove("wrong");
+      void food.offsetWidth;
+      food.classList.add("wrong");
+
+      selectedCutIndex = null;
+      document.querySelectorAll(".cut-zone").forEach(zone => {
+        zone.classList.remove("selected");
+      });
+
+      if (cutAttempts === 1) {
+        triesText.textContent = "2차";
+        message.textContent = `아쉬워요. 마지막 기회입니다. 이번에 맞히면 ${CUT_SECOND_SCORE}점입니다.`;
+      } else {
+        const question = questions[currentIndex];
+
+        locked = true;
+        stage = 2;
+
+        addReviewWord(question.word, "형태소 나누기");
+
+        message.textContent = "형태소 나누기를 두 번 모두 틀렸어요. 정답을 확인하고 단어 유형을 맞혀 보세요.";
+        answerBox.textContent = `정답 형태소: ${question.parts.join(" / ")} | 1단계 점수: 0점`;
+        answerBox.classList.add("show");
+
+        showSplitResult(question.parts);
+
+        stageText.textContent = "2단계";
+        stageLabel.textContent = "2단계: 단어 유형 맞히기";
+        triesText.textContent = "1차";
+
+        checkBtn.disabled = true;
+        noCutBtn.disabled = true;
+
+        showTypeQuestion(question);
+        locked = false;
+      }
+    }
+
+    function showSplitResult(parts) {
+      if (parts.length === 1) {
+        splitResult.innerHTML = `<span class="piece">${parts[0]}</span>`;
+      } else {
+        splitResult.innerHTML = `
+          <span class="piece">${parts[0]}</span>
+          <span class="slash-mark">/</span>
+          <span class="piece">${parts.slice(1).join("")}</span>
+        `;
+      }
+
+      splitResult.classList.add("show");
+      food.classList.add("split");
+    }
+
+    function showTypeQuestion(question) {
+      typeAttempts = 0;
+      typeStep.classList.add("show");
+      typeQuestion.textContent = `이 단어 "${question.word}"는 어떤 말일까요? 첫 번째 기회입니다. 바로 맞히면 ${TYPE_FIRST_SCORE}점입니다.`;
+
+      typeButtons.forEach(button => {
+        button.classList.remove("selected");
+        button.disabled = false;
+      });
+    }
+
+    function handleTypeChoice(choice) {
+      if (locked || stage !== 2) return;
+
+      const question = questions[currentIndex];
+      const correctType = question.type;
+
+      typeAttempts += 1;
+
+      typeButtons.forEach(button => {
+        button.classList.remove("selected");
+      });
+
+      const clickedButton = Array.from(typeButtons).find(
+        button => button.dataset.typeChoice === choice
+      );
+
+      if (clickedButton) {
+        clickedButton.classList.add("selected");
+      }
+
+      if (choice === correctType) {
+        handleCorrectType();
+      } else {
+        handleWrongType(choice);
+      }
+    }
+
+    function handleCorrectType() {
+      const question = questions[currentIndex];
+      let earned = 0;
+
+      if (typeAttempts === 1) {
+        earned = TYPE_FIRST_SCORE;
+        typeFirstCorrectCount += 1;
+      } else {
+        earned = TYPE_SECOND_SCORE;
+        typeSecondCorrectCount += 1;
+      }
+
+      score += earned;
+      typeScore += earned;
+      updateScore();
+
+      message.textContent = `정답입니다! "${question.word}"는 ${question.type}입니다. ${earned}점을 얻었습니다.`;
+      answerBox.textContent = `형태소: ${question.parts.join(" / ")} | 단어 유형: ${question.type} | 2단계 점수: ${earned}점`;
+
+      finishCurrentQuestion();
+    }
+
+    function handleWrongType(choice) {
+      const question = questions[currentIndex];
+
+      if (typeAttempts === 1) {
+        triesText.textContent = "2차";
+        typeQuestion.textContent = `아쉬워요. 마지막 기회입니다. 이번에 맞히면 ${TYPE_SECOND_SCORE}점입니다.`;
+        message.textContent = `"${choice}"은/는 정답이 아닙니다. 한 번만 더 기회가 있습니다.`;
+      } else {
+        addReviewWord(question.word, "단어 유형");
+
+        message.textContent = `단어 유형을 두 번 모두 틀렸어요. "${question.word}"의 정답은 ${question.type}입니다.`;
+        answerBox.textContent = `형태소: ${question.parts.join(" / ")} | 단어 유형 정답: ${question.type} | 2단계 점수: 0점`;
+
+        finishCurrentQuestion();
+      }
+    }
+
+    function finishCurrentQuestion() {
+      locked = true;
+      stage = 3;
+
+      stageText.textContent = "완료";
+      triesText.textContent = "-";
+      stageLabel.textContent = "이 문제 완료";
+
+      typeButtons.forEach(button => {
+        button.disabled = true;
+      });
+
+      nextBtn.disabled = false;
+
+      const question = questions[currentIndex];
+      const wasReviewed = reviewWords.some(item => item.word === question.word);
+
+      if (!wasReviewed) {
+        fullyCorrectCount += 1;
+      }
+    }
+
+    function goNext() {
+      if (stage !== 3) return;
+
+      currentIndex += 1;
+
+      if (currentIndex >= questions.length) {
+        showFinishScreen();
+        return;
+      }
+
+      loadQuestion();
+    }
+
+    function showFinishScreen() {
+      locked = true;
+
+      const percent = Math.round((score / MAX_TOTAL_SCORE) * 100);
+      const reviewText = reviewWords.length === 0
+        ? "다시 공부할 단어가 없습니다. 아주 잘했습니다."
+        : reviewWords.map(item => `${item.word}(${item.reason})`).join(", ");
+
+      progressText.textContent = `${questions.length} / ${questions.length}`;
+      scoreText.textContent = score;
+      stageText.textContent = "종료";
+      triesText.textContent = "-";
+
+      instruction.style.display = "none";
+      stageLabel.style.display = "none";
+      foodStage.style.display = "none";
+      mainButtons.style.display = "none";
+      typeStep.classList.remove("show");
+      answerBox.classList.remove("show");
+      message.style.display = "none";
+
+      finalCard.innerHTML = `
+        <h2>최종 결과</h2>
+        <div class="score-big">${score}점 / ${MAX_TOTAL_SCORE}점</div>
+
+        <div class="result-grid">
+          <div class="result-item">
+            백분율 점수
+            <span>${percent}점</span>
+          </div>
+          <div class="result-item">
+            완전 정답 문제
+            <span>${fullyCorrectCount}개</span>
+          </div>
+          <div class="result-item">
+            형태소 나누기 점수
+            <span>${cutScore}점</span>
+          </div>
+          <div class="result-item">
+            단어 유형 점수
+            <span>${typeScore}점</span>
+          </div>
+          <div class="result-item">
+            형태소 1차 정답
+            <span>${cutFirstCorrectCount}개</span>
+          </div>
+          <div class="result-item">
+            형태소 2차 정답
+            <span>${cutSecondCorrectCount}개</span>
+          </div>
+          <div class="result-item">
+            유형 1차 정답
+            <span>${typeFirstCorrectCount}개</span>
+          </div>
+          <div class="result-item">
+            유형 2차 정답
+            <span>${typeSecondCorrectCount}개</span>
+          </div>
+        </div>
+
+        <div class="review-list">
+          <strong>다시 공부할 단어</strong><br>
+          ${reviewText}
+        </div>
+      `;
+
+      finalCard.classList.add("show");
+    }
+
+    function updateScore() {
+      scoreText.textContent = score;
+    }
+
+    function addReviewWord(word, reason) {
+      const existing = reviewWords.find(item => item.word === word && item.reason === reason);
+
+      if (!existing) {
+        reviewWords.push({ word, reason });
+      }
+    }
+
+    function playSlashEffect() {
+      knifeLine.classList.remove("show");
+      void knifeLine.offsetWidth;
+      knifeLine.classList.add("show");
+    }
+
+    function playCorrectSound() {
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContext();
+
+        playTone(audioContext, 523.25, 0.00, 0.12);
+        playTone(audioContext, 659.25, 0.13, 0.12);
+        playTone(audioContext, 783.99, 0.26, 0.18);
+      } catch (error) {
+        console.log("Audio not available", error);
+      }
+    }
+
+    function playTone(audioContext, frequency, startTime, duration) {
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.value = frequency;
+
+      oscillator.connect(gain);
+      gain.connect(audioContext.destination);
+
+      const now = audioContext.currentTime;
+      gain.gain.setValueAtTime(0.001, now + startTime);
+      gain.gain.exponentialRampToValueAtTime(0.25, now + startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + startTime + duration);
+
+      oscillator.start(now + startTime);
+      oscillator.stop(now + startTime + duration + 0.03);
+    }
+
+    function shuffleArray(array) {
+      for (let index = array.length - 1; index > 0; index -= 1) {
+        const randomIndex = Math.floor(Math.random() * (index + 1));
+        const temp = array[index];
+        array[index] = array[randomIndex];
+        array[randomIndex] = temp;
+      }
+    }
+  </script>
+</body>
+</html>
